@@ -1,0 +1,170 @@
+!Units: [N], [Nmm], [N/mm^2 = MPa], [N/mm]
+FINISH
+/CLEAR
+/FILENAME,XXX
+/TITLE, Flat plate compression
+
+!White canvas for result presentation
+/RGB,INDEX,100,100,100,0
+/RGB,INDEX,0,0,0,15
+
+!Remove triad and min-max for result presentation
+/VIEW,1,1,1,1
+/TRIAD,OFF
+/PLOPTS,MINM,OFF
+
+!Remove date & time
+/PLOPTS,DATE,0
+/PLOPTS,LOGO,1
+
+!Section color view on elements
+/PNUM,SEC,1
+/NUMBER,1
+
+/PREP7
+
+!#####################################################################################################################################
+!#####################################################################################################################################
+!## PANEL GEOMETRY PARAMETERS
+*AFUN,DEG
+
+!SKIN PARAMETERS
+b = 100     						!Panel circuferential length (b = R*theta)
+a = 1*b       					    !Panel length
+Z = 30
+t = 1   							!Panel thickness
+!R = 500
+pi = 4*ATAN(1)						!Define pi
+Z = 30 							!Panel thickness
+R = (b*b/(Z*t))*(1-0.33*0.33)**0.5			!Define pi
+theta = 2*ASIN(b/(2*r))                 !Calculates the angle of the panel
+
+!#####################################################################################################################################
+!#####################################################################################################################################
+!## 1. MATERIAL AND ELEMENT DEFINITION
+
+MP,EX,1,70E3
+MP,PRXY,1,0.33
+
+ET,1,SHELL181							!Define skin lay-up [45,-45,0,45,90,-45,0,-45,45] with 0 -> horizontal and 90 -> vertical
+SECTYPE,1,SHELL
+SECDATA,t
+
+!#####################################################################################################################################
+!#####################################################################################################################################
+!## 2. GEOMETRY CREATION
+
+!## 2.1 SKIN CREATION
+
+CSYS,1									!Cylindrical coordinate system
+
+K,1,
+K,2,0,0,a								!Define two KP's for rotating the base of the panel 
+K,3,-R,-theta/2
+K,4,-R,-theta/2,a					    !Define two KP's of the panel for creating the cylindrical geometry of the skin
+
+L,3,4	
+AROTAT,1,,,,,,1,2,theta,1				!Rotate the line created between the panels KP's and create the cylindrical geometry of the skin
+
+*GET,kpmax,KP,0,NUM,MAX
+K,kpmax+1,-R,theta/2,a/2 
+K,kpmax+2,-R,-theta/2,a/2
+K,kpmax+3,0,theta/4,a/2 
+LARC,KPMAX+1,KPMAX+2,KPMAX+3,R
+
+K,kpmax+4,-R,0,0 
+K,kpmax+5,-R,0,a 
+L,kpmax+4,kpmax+5
+
+ASBL,ALL,ALL
+!#####################################################################################################################################
+!#####################################################################################################################################
+!## 3. MESHING
+
+ESIZE,2
+AMESH,ALL
+!NROTAT,ALL
+
+!#####################################################################################################################################
+!#####################################################################################################################################
+!## 3. BOUNDARY CONDITIONS
+
+CSYS,1
+SELTOL,1.0E-3
+
+rc= 0 
+n_comp = 1386.08
+rs = 1
+n_shear = 1
+
+compload = rc*n_comp
+shearload = rs*n_shear
+
+NSEL,S,LOC,Z,0    !Left and right side - Simply supported
+*GET,ynodes,NODE,0,COUNT
+NSEL,A,LOC,z,a
+NSEL,A,LOC,Y,180-theta/2
+NSEL,A,LOC,Y,-180+theta/2
+D,ALL,UX
+ALLSEL 
+
+NSEL,S,LOC,Z,a/2 
+NSEL,R,LOC,Y,180 
+*GET,midnode,NODE,0,NUM,MIN
+D,ALL,UZ 
+D,ALL,UY 
+!D,ALL,ROTZ 
+ALLSEL 
+
+NSEL,S,LOC,Z,b/2 
+NSEL,R,LOC,Y,-180+theta/2
+D,ALL,UZ 
+ALLSEL
+
+NSEL,S,LOC,Y,180-theta/2 
+*GET,xnodes,NODE,0,COUNT 
+ALLSEL 
+NSEL,S,LOC,Z,0 
+F,ALL,FZ,compload/ynodes 
+ALLSEL 
+NSEL,S,LOC,Z,a 
+F,ALL,FZ,-compload/ynodes 
+ALLSEL 
+
+NSEL,S,LOC,Y,180-theta/2
+F,ALL,FZ,shearload*b*t/xnodes 
+ALLSEL 
+NSEL,S,LOC,Y,-180+theta/2
+F,ALL,FZ,-shearload*b*t/xnodes 
+ALLSEL 
+NSEL,S,LOC,Z,0 
+F,ALL,FY,-shearload*b*t/ynodes 
+ALLSEL 
+NSEL,S,LOC,Z,a 
+F,ALL,FY,shearload*b*t/ynodes 
+ALLSEL
+SELTOL
+!#####################################################################################################################################
+!#####################################################################################################################################
+!## 4. SOLUTION
+
+!## 5. EIGENVALUE SOLUTION
+
+/SOLU
+ANTYPE,STATIC             !Static analysis
+PSTRES,ON                 !Calculate prestress effects
+SOLVE
+FINISH
+
+/SOLU
+ANTYPE,BUCKLE             !Buckling analysis
+BUCOPT,LANB,5,,,RANGE          !Use Block Lanczos method, 1 mode
+MXPAND,5                !Expand 1 mode shape
+OUTPR,ALL,ALL
+SOLVE
+FINISH
+
+/POST1
+SET,1,1
+RSYS,1
+PLNSOL,U,X
