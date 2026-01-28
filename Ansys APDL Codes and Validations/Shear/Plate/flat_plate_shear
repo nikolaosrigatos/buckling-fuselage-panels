@@ -1,0 +1,179 @@
+!Units: [N], [Nmm], [N/mm^2 = MPa], [N/mm]
+FINISH
+/CLEAR
+/FILENAME,XXX
+/TITLE, Flat plate shear
+
+!White canvas for result presentation
+/RGB,INDEX,100,100,100,0
+/RGB,INDEX,0,0,0,15
+
+!Remove triad and min-max for result presentation
+/VIEW,1,1,1,1
+/TRIAD,OFF
+/PLOPTS,MINM,OFF
+
+!Remove date & time
+/PLOPTS,DATE,0
+/PLOPTS,LOGO,1
+
+!Section color view on elements
+/PNUM,SEC,1
+/NUMBER,1
+
+/PREP7
+!######################################################################################################
+ 
+b = 1000       !Plate length
+AR = 2.5        !Aspect ratio
+a = AR*b	  !Plate width
+t = 3         !Plate thickness
+
+E1 = 200E3       !Young's modulus of elasticity
+poiss = 0.3   !Poisson ratio
+
+imp = 0.001
+elemsize = 20
+
+!######################################################################################################
+
+!Material Properties
+MP,EX,1,E1		    !Attribute Young's Modulus at Material 1
+MP,NUXY,1,poiss		!Attribute Poisson ratio at Material 1
+
+!Element type and properties
+ET,1,SHELL181		!Create SHELL181 Element Type 1
+SECTYPE,1,SHELL
+SECDATA,t		    !Attribute thickness t at Element Type 1
+
+!Geometry
+K,1			    !Create a keypoint at (0,0,0)
+K,2,a			!Create a keypoint at (a,0,0)
+K,3,a,b			!Create a keypoint at (a,b,0)
+K,4,0,b			!Create a keypoint at (0,b,0)
+A,1,2,3,4		!Defines a rectangular area by connecting keypoints 1,2,3,4
+
+K,5,a/2,0 
+K,6,a/2,b 
+L,5,6
+
+K,7,0,b/2 
+K,8,a,b/2
+L,7,8
+
+ASBL,ALL,ALL
+
+!Meshing
+ESIZE,elemsize       !Element sizing
+AMESH,ALL		!Mesh all areas with defined sizing
+EPLOT
+
+!######################################################################################################
+!Boundary Conditions	
+
+NSEL,S,LOC,X,0    !Left and right side - Simply supported
+NSEL,A,LOC,X,a
+D,ALL,UZ
+ALLSEL 
+
+NSEL,S,LOC,Y,0    !Top and bottom side - Simply supported
+NSEL,A,LOC,Y,b
+D,ALL,UZ 
+ALLSEL
+
+NSEL,S,LOC,X,a/2 
+NSEL,R,LOC,Y,b/2 
+D,ALL,UX 
+D,ALL,UY 
+ALLSEL 
+
+NSEL,S,LOC,X,a 
+NSEL,R,LOC,Y,b/2 
+*GET,node1,NODE,0,NUM,min
+D,ALL,UY 
+ALLSEL
+
+NSEL,S,LOC,X,0 
+*GET,b_nodes,NODE,0,COUNT 
+F,ALL,FY,1
+!*get,leftnodes,node,0,num,min
+!,leftnodes,UY,160/b
+!CP,NEXT,UY,ALL
+ALLSEL 
+NSEL,S,LOC,X,a
+F,ALL,FY,-1
+NSEL,U,node,,node1
+!*get,rightnodes,node,0,num,min
+!D,rightnodes,UY,-160/b
+!CP,NEXT,UY,ALL
+ALLSEL 
+
+NSEL,S,LOC,Y,0 
+*GET,a_nodes,NODE,0,COUNT 
+F,ALL,FX,1
+!*get,botnodes,node,0,num,min
+!D,botnodes,UX,160/a
+!CP,NEXT,UX,ALL
+ALLSEL 
+NSEL,S,LOC,Y,b
+F,ALL,FX,-1
+!*get,topnodes,node,0,num,min
+!D,topnodes,UX,-160/a
+!CP,NEXT,UX,ALL
+ALLSEL 
+
+!######################################################################################################
+   
+/SOLU
+ANTYPE,STATIC             !Static analysis
+PSTRES,ON                 !Calculate prestress effects
+SOLVE
+FINISH
+
+/SOLU
+ANTYPE,BUCKLE             !Buckling analysis
+BUCOPT,LANB,5,0,,RANGE             !Use Block Lanczos method, 1 mode
+MXPAND,5                  !Expand 1 mode shape
+OUTPR,NSOL,ALL
+SOLVE
+FINISH
+
+/POST1
+SET,1,1
+PLNSOL,U,Z
+
+/PREP7 
+UPGEOM,imp,1,1,XXX,rst
+
+/SOLU
+NCNV,0 
+ANTYPE,STATIC 
+NLGEOM,ON       !Non-linear geometry
+TIME,1         !Time at end of load step
+AUTOTS,ON       !Auto timestepping on
+NSUBST,50,150,50      !Number of substeps
+NEQIT,200       !Max number of iterations
+RESCONTROL,DEFINE,ALL,1,
+OUTRES,ALL,ALL 
+SOLVE
+FINISH 
+
+/POST26
+NUMVAR,300
+NSOL,4,leftnodes,U,Y,Displacement  !Read displacement results for right edge
+RFORCE,5,leftnodes,F,Y,Force       !Read reaction force results for right edge
+ABS,6,4,,,Displacement,,,1
+ABS,7,5,,,Force,,,1/(b*t)        !Divide by 1000 to get results to kN
+/AXLAB,X,Force
+/AXLAB,Y,Displacement
+XVAR,6
+PLVAR,7                              !Load - displacement plot
+
+NSOL,4,botnodes,U,X,Displacement  !Read displacement results for right edge
+RFORCE,5,botnodes,F,X,Force       !Read reaction force results for right edge
+ABS,6,4,,,Displacement,,,1
+ABS,7,5,,,Force,,,1/(a*t)        !Divide by 1000 to get results to kN
+/AXLAB,X,Force
+/AXLAB,Y,Displacement
+XVAR,6
+PLVAR,7                              !Load - displacement plot
