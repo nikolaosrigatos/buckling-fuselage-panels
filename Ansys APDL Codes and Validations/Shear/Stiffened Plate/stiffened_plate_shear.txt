@@ -1,0 +1,479 @@
+FINISH
+/CLEAR
+/FILNAME,XXX
+/PREP7
+/TITLE, Stiffened panel in compression
+/VIEW,1,1,1,1
+!All dimensions are in mm. Young's Modulus of Elasticity is in MPa.
+
+!White canvas for result presentation
+/RGB,INDEX,100,100,100,0
+/RGB,INDEX,0,0,0,15
+
+!Remove triad and min-max for result presentation
+!/VIEW,1,1,1,1
+!/TRIAD,OFF
+!/PLOPTS,MINM,OFF
+
+!Remove date & time
+/PLOPTS,DATE,0
+/PLOPTS,LOGO,1
+
+!Section color view on elements
+!/PNUM,SEC,1
+!/NUMBER,1
+
+!#####################################################################################################################################
+!#####################################################################################################################################
+!## PANEL GEOMETRY PARAMETERS
+
+!SKIN PARAMETERS
+a = 1066.8     !Plate length
+b = 1066.8     !Plate width
+t = 1.27       !Plate thickness
+
+!STRINGER PARAMETERS
+d_between_str = 177.8       !Distance between each stiffener
+d_edge_str = 177.8
+h_str = 38.1                !Height of stiffener
+b_str = 38.1
+t_stiff = 1.27             !Thickness of stiffener
+
+!FRAME PARAMETERS 
+d_between_fr = 355.6 
+d_edge_fr = 355.6
+h_fr = 82.55 
+b_fr = 25.4 
+r_fr = 4.826 
+t_fr = 2.032
+
+
+!#####################################################################################################################################
+!#####################################################################################################################################
+!## 1. MATERIAL AND ELEMENT DEFINITION
+
+MP,EX,1,67.5814049E3                                  !Define material properties of aluminium, Young's Modulus and poisson ratio
+MP,NUXY,1,0.33
+
+TB,MISO,1,1,16
+TBPT,DEFI,4883e-6,330   
+TBPT,DEFI,5447e-6,352   
+TBPT,DEFI,6052e-6,363 
+TBPT,DEFI,6645e-6,368.4  
+TBPT,DEFI,7270.4e-6,371
+TBPT,DEFI,7813e-6,373,3
+TBPT,DEFI,8461.4e-6,375.5
+TBPT,DEFI,8977.5e-6,377 
+TBPT,DEFI,9560e-6,379 
+TBPT,DEFI,10153e-6,380
+TBPT,DEFI,10753e-6,382 
+TBPT,DEFI,11334.2e-6,383.5 
+TBPT,DEFI,11884e-6,384.6
+TBPT,DEFI,12509e-6,386
+TBPT,DEFI,13086e-6,387 
+TBPT,DEFI,13519e-6,389
+
+ET,1,SHELL181						            !Define element type and section of skin
+SECTYPE,1,SHELL
+SECOFFSET,BOT
+SECDATA,t,,,5
+
+SECTYPE,2,SHELL
+SECOFFSET,BOT
+SECDATA,t_stiff,,,5
+
+SECTYPE,3,SHELL
+SECDATA,t_fr,,,5
+
+SECTYPE,4,SHELL
+SECOFFSET,BOT
+!SECOFFSET,USER,-t_stiff/2
+SECDATA,t+t_stiff,,,5
+
+SECTYPE,5,SHELL
+SECOFFSET,BOT
+!SECOFFSET,USER,-t_fr/2
+SECDATA,t+t_fr,,,5
+
+SECTYPE,9,SHELL
+SECOFFSET,TOP
+!SECOFFSET,USER,-t_fr/2
+SECDATA,t+t_fr,,,5
+
+SECTYPE,6,SHELL
+SECDATA,3*t,,,5
+
+SECTYPE,7,SHELL
+SECOFFSET,USER,-t_stiff/2
+SECDATA,3*t+t_stiff,,,5
+
+SECTYPE,8,SHELL
+SECOFFSET,USER,t_fr/2
+SECDATA,3*t+t_fr,,,5
+
+!#####################################################################################################################################
+!#####################################################################################################################################
+!## 2. GEOMETRY CREATION
+
+!## 2.1 SKIN CREATION
+
+CSYS,0                                          !Cartesian coordinate system
+
+K,1,0,0,,                                       !Create keypoints at edge of skin panel
+K,2,a,0,,
+K,3,a,b,,
+K,4,0,b,,
+A,1,2,3,4                                       !Create rectangular area from keypoints created
+CM,SKIN1,AREA
+
+!## 2.2 STIFFENER CREATION
+*GET,kpmax,KP,0,NUM,MAX 
+*GET,areamax,KP,0,NUM,MAX 
+NUMSTR,AREA,areamax+1 
+
+K,kpmax+1,0,0,0 
+K,kpmax+2,a,0,0 
+K,kpmax+3,a,b_str,0 
+K,kpmax+4,0,b_str,0 
+A,kpmax+1,kpmax+2,kpmax+3,kpmax+4
+
+K,kpmax+5,0,b_str/2,0 
+K,kpmax+6,a,b_str/2,0 
+K,kpmax+7,a,b_str/2,h_str
+K,kpmax+8,0,b_str/2,h_str
+A,kpmax+5,kpmax+6,kpmax+7,kpmax+8
+ASEL,S,LOC,Y,0,b_str
+ASBL,ALL,ALL
+CM,STR1,AREAS
+ALLSEL
+
+*GET,linemax,LINE,0,NUM,MAX
+NUMSTR,LINE,linemax+1
+K,kpmax+9,d_edge_fr-b_fr/2,b_str/2,0 
+K,kpmax+10,d_edge_fr-b_fr/2,b_str/2,h_str
+L,kpmax+9,kpmax+10
+
+K,kpmax+11,d_edge_fr-b_fr/2+d_between_fr,b_str/2,0 
+K,kpmax+12,d_edge_fr-b_fr/2+d_between_fr,b_str/2,h_str
+L,kpmax+11,kpmax+12
+
+K,kpmax+13,d_edge_fr-b_fr/2+r_fr,b_str/2,0 
+K,kpmax+14,d_edge_fr-b_fr/2+r_fr,b_str/2,h_str
+L,kpmax+13,kpmax+14
+
+K,kpmax+15,d_edge_fr-b_fr/2+r_fr+d_between_fr,b_str/2,0 
+K,kpmax+16,d_edge_fr-b_fr/2+r_fr+d_between_fr,b_str/2,h_str
+L,kpmax+15,kpmax+16
+
+K,kpmax+17,0,b_str/2,r_fr
+K,kpmax+18,a,b_str/2,r_fr 
+L,kpmax+17,kpmax+18
+
+LSEL,S,LOC,Z,1,h_fr
+CM,lines,LINE
+ALLSEL
+ASBL,STR1,lines
+
+ASEL,S,LOC,Y,0,b_str
+AGEN,1,ALL,,,,d_edge_str-b_str/2,0,,,1
+AGEN,5,ALL,,,,d_between_str,0,,,
+CM,STR1,AREA
+ALLSEL
+
+ASBL,ALL,ALL
+NUMMRG,KP 
+
+!## 2.2 FRAME CREATION
+*GET,kpmax,KP,0,NUM,MAX 
+*GET,areamax,KP,0,NUM,MAX 
+NUMSTR,AREA,areamax+1 
+
+K,kpmax+1,0,0,0 
+K,kpmax+2,0,b,0 
+K,kpmax+3,b_fr,b,0 
+K,kpmax+4,b_fr,0,0
+A,kpmax+1,kpmax+2,kpmax+3,kpmax+4   !areamax+1 
+
+K,kpmax+5,0,b,h_fr
+K,kpmax+6,0,0,h_fr
+A,kpmax+1,kpmax+2,kpmax+5,kpmax+6   !areamax+2
+
+K,kpmax+7,b_fr,0,h_fr 
+K,kpmax+8,b_fr,b,h_fr 
+A,kpmax+5,kpmax+6,kpmax+7,kpmax+8   !areamax+3
+
+ASEL,S,AREA,,areamax+1,areamax+3 
+AFILLT,areamax+1,areamax+2,r_fr
+ASEL,R,LOC,Z,r_fr/2,h_fr
+*GET,fltarea1,AREA,0,NUM,MIN 
+*GET,fltarea2,AREA,fltarea1,NXTH
+AFILLT,fltarea1,fltarea2,r_fr
+ALLSEL
+
+*GET,linemax,LINE,0,NUM,MAX
+NUMSTR,LINE,linemax+1
+K,kpmax+9,0,0,h_str
+K,kpmax+10,0,b,h_str
+L,kpmax+9,kpmax+10
+ASEL,S,LOC,X,0,b_fr
+CM,FR1,AREA
+ALLSEL 
+LSEL,S,LINE,,linemax+1
+CM,lines,LINE 
+ALLSEL 
+ASBL,FR1,lines
+
+*GET,areamaxfr,KP,0,NUM,MAX 
+ASEL,S,AREA,,areamax+1,areamaxfr
+AGEN,1,ALL,,,d_edge_fr-b_fr/2,,,,,1
+AGEN,2,ALL,,,d_between_fr,,,,,
+CM,FR,AREA
+ALLSEL
+
+ASBL,ALL,ALL 
+NUMMRG,KP 
+
+*GET,kpmax,KP,0,NUM,MAX 
+K,kpmax+1,0,76.2,0 
+K,kpmax+2,a,76.2,0 
+L,kpmax+1,kpmax+2 
+
+K,kpmax+3,0,b-76.2,0 
+K,kpmax+4,a,b-76.2,0 
+L,kpmax+3,kpmax+4
+
+K,kpmax+5,76.2,0,0 
+K,kpmax+6,76.2,b,0 
+L,kpmax+5,kpmax+6 
+
+K,kpmax+7,a-76.2,0,0
+K,kpmax+8,a-76.2,b,0 
+L,kpmax+7,kpmax+8 
+ASBL,ALL,ALL
+
+!#####################################################################################################################################
+!#####################################################################################################################################
+!## 3. MESHING
+elemsize = 8
+
+dist1 = d_edge_fr-b_fr/2 
+dist2 = d_edge_fr+b_fr/2
+ASEL,S,LOC,X,dist1,dist2
+ASEL,A,LOC,X,dist1+d_between_fr,dist2+d_between_fr
+ASEL,R,LOC,Z,0
+CM,FRAMES_FOOT,AREA 
+ASEL,S,LOC,X,dist1,dist2
+ASEL,A,LOC,X,dist1+d_between_fr,dist2+d_between_fr
+LSEL,S,LENGTH,,r_fr
+LSEL,A,LENGTH,,h_str
+ASLL,R
+CM,STRINGERS1,AREA
+ALLSEL
+ASEL,S,LOC,X,dist1,dist2
+ASEL,A,LOC,X,dist1+d_between_fr,dist2+d_between_fr
+CMSEL,U,FRAMES_FOOT
+CMSEL,U,STRINGERS1 
+CM,FRAMES,AREA
+ALLSEL
+
+ASEL,S,LOC,Z,1,h_str
+CMSEL,U,FRAMES
+CM,STRINGERS,AREA
+ALLSEL
+
+dist3 = d_edge_str-b_str/2
+dist4 = d_edge_str+b_str/2
+ASEL,S,LOC,Y,dist3,dist4 
+ASEL,A,LOC,Y,dist3+d_between_str,dist4+d_between_str
+ASEL,A,LOC,Y,dist3+2*d_between_str,dist4+2*d_between_str
+ASEL,A,LOC,Y,dist3+3*d_between_str,dist4+3*d_between_str
+ASEL,A,LOC,Y,dist3+4*d_between_str,dist4+4*d_between_str
+ASEL,R,LOC,Z,0
+CMSEL,U,FRAMES_FOOT
+CM,STRINGERS_FOOT,AREA 
+ALLSEL
+
+CMSEL,U,FRAMES 
+CMSEL,U,FRAMES_FOOT 
+CMSEL,U,STRINGERS 
+CMSEL,U,STRINGERS_FOOT 
+CM,SKIN,AREA 
+ALLSEL
+
+!#####################################################################################################################################
+CMSEL,S,SKIN 
+SECNUM,1
+ESIZE,elemsize  
+AMESH,ALL 
+ALLSEL
+
+CMSEL,S,STRINGERS
+SECNUM,2
+ESIZE,elemsize    
+AMESH,ALL 
+ALLSEL
+
+CMSEL,S,FRAMES 
+SECNUM,3
+ESIZE,elemsize    
+AMESH,ALL 
+ALLSEL
+
+CMSEL,S,STRINGERS_FOOT
+SECNUM,4
+ESIZE,elemsize    
+AMESH,ALL 
+ALLSEL
+
+CMSEL,S,FRAMES_FOOT
+SECNUM,5
+ESIZE,elemsize    
+AMESH,ALL 
+ALLSEL
+
+NSEL,S,LOC,X,0,76.2 
+NSEL,A,LOC,X,a,a-76.2 
+NSEL,A,LOC,Y,0,76.2 
+NSEL,A,LOC,Y,b,b-76.2
+NSEL,R,LOC,Z,0
+ESLN,S,1
+CMSEL,S,FRAMES_FOOT
+ESLA,R
+EMODIF,ALL,SECTYPE,8
+ALLSEL
+
+NSEL,S,LOC,X,0,76.2 
+NSEL,A,LOC,X,a,a-76.2 
+NSEL,A,LOC,Y,0,76.2 
+NSEL,A,LOC,Y,b,b-76.2
+NSEL,R,LOC,Z,0
+ESLN,S,1
+CMSEL,S,STRINGERS_FOOT
+ESLA,R
+EMODIF,ALL,SECTYPE,7
+ALLSEL
+
+NSEL,S,LOC,X,0,76.2 
+NSEL,A,LOC,X,a,a-76.2 
+NSEL,A,LOC,Y,0,76.2 
+NSEL,A,LOC,Y,b,b-76.2
+NSEL,R,LOC,Z,0
+ESLN,S,1
+CMSEL,S,STRINGERS_FOOT
+CMSEL,A,FRAMES_FOOT
+ESLA,U
+EMODIF,ALL,SECTYPE,6
+ALLSEL
+
+NUMMRG,KP 
+NUMMRG,NODE
+
+ASEL,S,LOC,X,dist1+r_fr,dist1+r_fr+b_str
+ASEL,R,LOC,Z,0 
+ASEL,R,LOC,Y,76.2,76.2+82.55
+CM,ast1,AREA
+ASEL,S,LOC,X,dist1+r_fr,dist1+r_fr+b_str
+ASEL,R,LOC,Z,0 
+ASEL,R,LOC,Y,b-76.2,b-(76.2+82.55)
+CM,ast2,AREA
+ASEL,S,LOC,X,dist1+r_fr+d_between_fr,dist1+d_between_fr+r_fr+b_str
+ASEL,R,LOC,Z,0 
+ASEL,R,LOC,Y,76.2,76.2+82.55
+CM,ast3,AREA
+ASEL,S,LOC,X,dist1+r_fr+d_between_fr,dist1+d_between_fr+r_fr+b_str
+ASEL,R,LOC,Z,0 
+ASEL,R,LOC,Y,b-76.2,b-(76.2+82.55)
+CM,ast4,AREA
+CMSEL,S,ast1
+CMSEL,A,ast2 
+CMSEL,A,ast3 
+CMSEL,A,ast4 
+CM,ast,AREA 
+ALLSEL
+
+CMSEL,S,ast 
+ESLA,S 
+EMODIF,ALL,SECTYPE,9
+ALLSEL
+
+LOCAL,11,0
+ESYS,11 
+EMODIF,ALL,ESYS,11
+
+
+!#####################################################################################################################################
+!#####################################################################################################################################
+!## 4. BOUNDARY CONDITIONS
+
+NSEL,S,LOC,X,0,1*elemsize
+D,ALL,UX
+D,ALL,UY
+D,ALL,UZ
+ALLSEL 
+
+NSEL,S,LOC,X,a,a-1*elemsize
+D,ALL,UZ 
+D,ALL,UX
+CP,NEXT,UY,ALL
+*GET,minnode,NODE,0,NUM,MIN 
+ALLSEL 
+
+NSEL,S,LOC,Y,0,1*elemsize
+NSEL,A,LOC,Y,b,b-1*elemsize
+D,ALL,UZ
+D,ALL,UX
+ALLSEL
+
+D,minnode,UY,-12.6
+
+!#####################################################################################################################################
+!#####################################################################################################################################
+!## 5. EIGENVALUE SOLUTION
+
+!/SOLU
+!ANTYPE,STATIC             !Static analysis
+!PSTRES,ON                 !Calculate prestress effects
+!SOLVE
+!FINISH
+
+!/!SOLU
+!A!NTYPE,BUCKLE             !Buckling analysis
+!BUCOPT,LANB,10            !Use Block Lanczos method, 1 mode
+!MXPAND,10                 !Expand 1 mode shape
+!OUTPR,NSOL,ALL
+!SOLVE
+!FINISH
+
+!/POST1 
+!SET,1,1
+!RSYS,1 
+!PLNSOL,U,X
+
+!/PREP7 
+!d = 0.05*t
+!UPGEOM,d,1,2,XXX,rst
+!FINISH
+
+/SOLU
+NCNV,0
+ANTYPE,STATIC
+NLGEOM,ON
+AUTOTS,ON
+TIME,1
+NSUBST,100,200,100
+LNSRCH,ON
+NEQIT,300
+RESCONTROL,DEFINE,ALL,1
+OUTRES,ALL,ALL,,,,
+SOLVE
+
+/POST26
+NUMVAR,200
+NSOL,4,minnode,U,Y,Displacement
+RFORCE,5,minnode,F,Y,Force
+ABS,6,5,,,Load,,,1/1000
+ABS,7,4,,,Displacement,,,10e5/a
+/AXLAB,X,End Shortening (mm)
+/AXLAB,Y,Force (kN)
+XVAR,7
+PLVAR,6
