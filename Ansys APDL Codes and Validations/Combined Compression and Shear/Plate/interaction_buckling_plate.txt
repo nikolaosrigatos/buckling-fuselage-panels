@@ -1,0 +1,151 @@
+!Units: [N], [Nmm], [N/mm^2 = MPa], [N/mm]
+FINISH
+/CLEAR
+/FILENAME,XXX
+/TITLE, Flat plate compression
+
+!White canvas for result presentation
+/RGB,INDEX,100,100,100,0
+/RGB,INDEX,0,0,0,15
+
+!Remove triad and min-max for result presentation
+/VIEW,1,1,1,1
+/TRIAD,OFF
+/PLOPTS,MINM,OFF
+
+!Remove date & time
+/PLOPTS,DATE,0
+/PLOPTS,LOGO,1
+
+!Section color view on elements
+/PNUM,SEC,1
+/NUMBER,1
+
+/PREP7
+!######################################################################################################
+ 
+b = 100       !Plate length
+AR = 1        !Aspect ratio
+a = AR*b	  !Plate width
+t = 0.5         !Plate thickness
+
+E1 = 70E3       !Young's modulus of elasticity
+poiss = 0.33   !Poisson ratio
+
+imp = 0.1
+elemsize = 2
+
+!######################################################################################################
+
+!Material Properties
+MP,EX,1,E1		    !Attribute Young's Modulus at Material 1
+MP,NUXY,1,poiss		!Attribute Poisson ratio at Material 1
+
+!Element type and properties
+ET,1,SHELL181		!Create SHELL181 Element Type 1
+SECTYPE,1,SHELL
+SECDATA,t		    !Attribute thickness t at Element Type 1
+
+!Geometry
+K,1			    !Create a keypoint at (0,0,0)
+K,2,a			!Create a keypoint at (a,0,0)
+K,3,a,b			!Create a keypoint at (a,b,0)
+K,4,0,b			!Create a keypoint at (0,b,0)
+A,1,2,3,4		!Defines a rectangular area by connecting keypoints 1,2,3,4
+
+!Meshing
+ESIZE,elemsize       !Element sizing
+AMESH,ALL		!Mesh all areas with defined sizing
+NUMMRG,ALL
+EPLOT
+
+!######################################################################################################
+!Boundary Conditions
+
+rc = 1
+n_comp = 333.194 
+rs = 0
+n_shear = 755.851
+
+compload = rc*n_comp
+shearload = rs*n_shear
+
+NSEL,S,LOC,X,0    !Left and right side - Simply supported
+*GET,ynodes,NODE,0,COUNT
+NSEL,A,LOC,X,a
+NSEL,A,LOC,Y,0 
+NSEL,A,LOC,Y,b 
+D,ALL,UZ
+ALLSEL 
+
+NSEL,S,LOC,X,a/2 
+NSEL,R,LOC,Y,b/2 
+*GET,midnode,NODE,0,NUM,MIN
+D,ALL,UX 
+D,ALL,UY 
+!D,ALL,ROTZ 
+ALLSEL 
+
+NSEL,S,LOC,X,b/2 
+NSEL,R,LOC,Y,0 
+D,ALL,UX 
+ALLSEL
+
+NSEL,S,LOC,Y,0 
+*GET,xnodes,NODE,0,COUNT 
+ALLSEL 
+NSEL,S,LOC,X,0 
+F,ALL,FX,compload/ynodes 
+ALLSEL 
+NSEL,S,LOC,X,a 
+F,ALL,FX,-compload/ynodes 
+ALLSEL 
+
+NSEL,S,LOC,Y,0 
+F,ALL,FX,shearload/xnodes 
+ALLSEL 
+NSEL,S,LOC,Y,b 
+F,ALL,FX,-shearload/xnodes 
+ALLSEL 
+NSEL,S,LOC,X,0 
+F,ALL,FY,shearload/ynodes 
+ALLSEL 
+NSEL,S,LOC,X,a 
+F,ALL,FY,-shearload/ynodes 
+ALLSEL
+
+!######################################################################################################
+   
+/SOLU
+ANTYPE,STATIC             !Static analysis
+PSTRES,ON                 !Calculate prestress effects
+SOLVE
+FINISH
+
+/SOLU
+ANTYPE,BUCKLE             !Buckling analysis
+BUCOPT,LANB,5,,,RANGE          !Use Block Lanczos method, 1 mode
+MXPAND,5                !Expand 1 mode shape
+OUTPR,ALL,ALL
+SOLVE
+FINISH
+
+/POST1
+SET,1,1
+PLNSOL,U,Z
+
+/PREP7 
+UPGEOM,imp,1,1,XXX,rst
+
+/SOLU
+NCNV,0 
+ANTYPE,STATIC 
+NLGEOM,ON       !Non-linear geometry
+TIME,1          !Time at end of load step
+AUTOTS,ON       !Auto timestepping on
+NSUBST,50,150,50      !Number of substeps
+NEQIT,200       !Max number of iterations
+RESCONTROL,DEFINE,ALL,1,
+OUTRES,ALL,ALL 
+SOLVE
+FINISH 
