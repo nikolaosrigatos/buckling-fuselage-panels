@@ -1,0 +1,162 @@
+FINISH
+/CLEAR
+/PREP7
+/TITLE, Curved panel in compression 
+/VIEW,1,1,1,1
+!All dimensions are in mm. Young's Modulus of Elasticity is in MPa.
+
+!#####################################################################################################################################
+!#####################################################################################################################################
+!## PANEL GEOMETRY PARAMETERS
+*AFUN,RAD
+
+!SKIN PARAMETERS
+b = 248   				    !Panel circuferential length (b = R*theta)
+a = 4*b     						!Panel length
+t = 0.762							!Panel thickness
+R = 762 							!Panel curvature
+pi = 4*ATAN(1)						!Define pi
+theta = (b/R)*(180/pi)                             !Calculates the angle of the panel
+
+!#####################################################################################################################################
+!#####################################################################################################################################
+!## 1. MATERIAL AND ELEMENT DEFINITION
+
+MP,EX,1,72.4E3
+MP,PRXY,1,0.33
+
+ET,1,SHELL181							!Define skin lay-up [45,-45,0,45,90,-45,0,-45,45] with 0 -> horizontal and 90 -> vertical
+SECTYPE,1,SHELL
+SECDATA,t
+
+!#####################################################################################################################################
+!#####################################################################################################################################
+!## 2. GEOMETRY CREATION
+
+!## 2.1 SKIN CREATION
+
+CSYS,1									!Cylindrical coordinate system
+
+K,1,
+K,2,0,0,a								!Define two KP's for rotating the base of the panel 
+K,3,-R,-theta/2
+K,4,-R,-theta/2,a					    !Define two KP's of the panel for creating the cylindrical geometry of the skin
+
+L,3,4	
+AROTAT,1,,,,,,1,2,theta,2				!Rotate the line created between the panels KP's and create the cylindrical geometry of the skin
+
+!#####################################################################################################################################
+!#####################################################################################################################################
+!## 3. MESHING
+
+TYPE,1
+MAT,1 
+SECNUM,1
+ESYS,1
+elemsize = 10
+ESIZE,elemsize
+AMESH,ALL
+NROTAT,ALL
+
+!#####################################################################################################################################
+!#####################################################################################################################################
+!## 3. BOUNDARY CONDITIONS
+
+CSYS,1
+SELTOL,1.0E-3
+
+NSEL,S,LOC,Z,0
+*GET,nodeno,NODE,0,COUNT
+NSEL,A,LOC,Z,a 
+D,ALL,ROTZ
+NSEL,A,LOC,Y,180-theta/2
+NSEL,A,LOC,Y,180+theta/2
+D,ALL,UX
+ALLSEL
+
+SELTOL,0.5*4
+NSEL,S,LOC,Z,a
+SELTOL,1.0E-3
+NSEL,R,LOC,Y,180 
+D,ALL,UY
+ALLSEL
+
+NSEL,S,LOC,Z,0
+CP,NEXT,UZ,ALL
+*GET,minrightnode,NODE,0,NUM,MIN 
+ALLSEL
+
+NSEL,S,LOC,Z,a
+D,ALL,UZ
+ALLSEL
+
+NSEL,S,LOC,Y,180-theta/2
+D,ALL,ROTY
+CP,NEXT,UY,ALL
+ALLSEL
+NSEL,s,LOC,Y,180+theta/2
+CP,NEXT,UY,ALL
+D,ALL,ROTY
+ALLSEL
+
+D,minrightnode,UZ,4*a/10000
+
+
+!#####################################################################################################################################
+!#####################################################################################################################################
+!## 4. SOLUTION
+
+!## 5. EIGENVALUE SOLUTION
+
+/SOLU
+ANTYPE,STATIC             !Static analysis
+PSTRES,ON                 !Calculate prestress effects
+SOLVE
+FINISH
+
+/SOLU
+ANTYPE,BUCKLE             !Buckling analysis
+BUCOPT,LANB,10             !Use Block Lanczos method, 1 mode
+MXPAND,10                  !Expand 1 mode shape
+OUTPR,ALL,ALL
+SOLVE
+FINISH
+
+/POST1
+CSYS,1
+RSYS,1
+SET,1,1
+PLNSOL,U,X
+
+/PREP7
+d = 0.4323*0.20*t
+UPGEOM,0.2,1,1,'XXX',rst
+UPGEOM,0.2,1,2,'XXX',rst
+UPGEOM,0.2,1,3,'XXX',rst
+UPGEOM,0.2,1,4,'XXX',rst
+
+!######################################################################################################
+
+
+/SOLU
+ANTYPE,STATIC
+AUTOTS,OFF
+TIME,4*a/10000
+NSUBST,200
+NLGEOM,ON
+ARCLEN,ON,1,0.1
+NEQIT,200
+RESCONTROL,DEFINE,ALL,1,
+OUTRES,ALL,ALL,,,,
+SOLVE
+FINISH
+
+/POST26
+NSOL,4,minrightnode,U,Z,Displacement
+RFORCE,5,minrightnode,F,Z,Force
+ABS,6,5,,,Load,,,1/(b*t)
+ABS,7,4,,,Displacement,,,1/a
+/AXLAB,X,End Shortening (mm)
+/AXLAB,Y,Force (kN)
+XVAR,7
+PLVAR,6
