@@ -1,0 +1,187 @@
+FINISH
+/CLEAR
+/PREP7
+/TITLE, Curved panel in compression 
+/VIEW,1,1,1,1
+!All dimensions are in mm. Young's Modulus of Elasticity is in MPa.
+
+!#####################################################################################################################################
+!#####################################################################################################################################
+!## PANEL GEOMETRY PARAMETERS
+*AFUN,RAD
+
+!SKIN PARAMETERS
+b = 100     						!Panel circuferential length (b = R*theta)
+a = 1*b       					!Panel length
+Z = 30
+t = 1   							!Panel thickness
+R = (b*b/(Z*t))*(1-0.33*0.33)**0.5
+pi = 4*ATAN(1)						!Define pi
+theta = (b/R)*(180/pi)                             !Calculates the angle of the panel
+
+
+!#####################################################################################################################################
+!#####################################################################################################################################
+!## 1. MATERIAL AND ELEMENT DEFINITION
+
+MP,EX,1,70E3
+MP,PRXY,1,0.33
+
+ET,1,SHELL181							!Define skin lay-up [45,-45,0,45,90,-45,0,-45,45] with 0 -> horizontal and 90 -> vertical
+SECTYPE,1,SHELL
+SECDATA,t
+
+!#####################################################################################################################################
+!#####################################################################################################################################
+!## 2. GEOMETRY CREATION
+
+!## 2.1 SKIN CREATION
+
+CSYS,1									!Cylindrical coordinate system
+
+K,1,
+K,2,0,0,a								!Define two KP's for rotating the base of the panel 
+K,3,-R,-theta/2
+K,4,-R,-theta/2,a					    !Define two KP's of the panel for creating the cylindrical geometry of the skin
+
+L,3,4	
+AROTAT,1,,,,,,1,2,theta,1				!Rotate the line created between the panels KP's and create the cylindrical geometry of the skin
+
+!#####################################################################################################################################
+!#####################################################################################################################################
+!## 3. MESHING
+
+ESIZE,1
+AMESH,ALL
+NROTAT,ALL
+
+!#####################################################################################################################################
+!#####################################################################################################################################
+!## 3. BOUNDARY CONDITIONS
+
+CSYS,1
+SELTOL,1.0E-3
+
+NSEL,S,LOC,Z,a              !Corner 1
+NSEL,R,LOC,Y,180-theta/2 
+*GET,corner1,NODE,0,NUM,MIN
+D,ALL,UX
+D,ALL,UY
+D,ALL,UZ
+ALLSEL 
+
+NSEL,S,LOC,Z,a              !Corner 3
+NSEL,R,LOC,Y,180+theta/2 
+*GET,corner3,NODE,0,NUM,MIN
+D,ALL,UX 
+D,ALL,UZ
+ALLSEL 
+
+NSEL,S,LOC,Z,0              !Corner 5
+NSEL,R,LOC,Y,180+theta/2 
+*GET,corner5,NODE,0,NUM,MIN
+D,ALL,UZ 
+D,ALL,UX 
+ALLSEL
+
+NSEL,S,LOC,Z,0              !Corner 7
+NSEL,R,LOC,Y,180-theta/2 
+*GET,corner7,NODE,0,NUM,MIN
+D,ALL,UZ 
+D,ALL,UX 
+ALLSEL
+
+NSEL,S,LOC,Z,a              !Edge 2
+D,ALL,UX 
+ALLSEL 
+
+NSEL,S,LOC,Y,180+theta/2    !Edge 4
+D,ALL,UX 
+ALLSEL 
+
+ 
+NSEL,S,LOC,Z,0               !Edge 6
+*GET,curvednodeno,NODE,0,COUNT
+D,ALL,UX 
+ALLSEL 
+
+NSEL,S,LOC,Y,180-theta/2    !Edge 8
+*GET,straightnodeno,NODE,0,COUNT
+D,ALL,UX 
+ALLSEL 
+
+NSEL,S,LOC,Z,0 
+F,ALL,FY,1*b*t/curvednodeno
+ALLSEL 
+
+NSEL,S,LOC,Z,a 
+F,ALL,FY,-1*b*t/curvednodeno
+ALLSEL 
+
+NSEL,S,LOC,Y,180-theta/2
+F,ALL,FZ,1*a*t/straightnodeno
+ALLSEL 
+
+NSEL,S,LOC,Y,180+theta/2
+F,ALL,FZ,-1*a*t/straightnodeno
+ALLSEL
+
+SELTOL
+!#####################################################################################################################################
+!#####################################################################################################################################
+!## 4. SOLUTION
+
+!## 5. EIGENVALUE SOLUTION
+
+/SOLU
+ANTYPE,STATIC             !Static analysis
+PSTRES,ON                 !Calculate prestress effects
+SOLVE
+FINISH
+
+/SOLU
+ANTYPE,BUCKLE             !Buckling analysis
+BUCOPT,LANB,4,0,,RANGE             !Use Block Lanczos method, 1 mode
+MXPAND,4                  !Expand 1 mode shape
+OUTPR,NSOL,ALL
+SOLVE
+FINISH
+
+/POST1
+CSYS,1
+RSYS,1
+SET,1,1
+PLNSOL,U,X
+
+/PREP7
+UPGEOM,0.1*t,1,1,'XXX',rst
+FINISH
+
+!############################
+
+/SOLU
+ANTYPE,STATIC
+AUTOTS,OFF
+TIME,1
+NSUBST,30
+NLGEOM,ON
+ARCLEN,ON,2,0.1
+NEQIT,300
+!LNSRCH,AUTO
+!AUTOTS,ON
+!CNVTOL,STAT
+RESCONTROL,DEFINE,ALL,1,
+OUTRES,ALL,ALL,,,,
+SOLVE
+FINISH
+
+/POST26
+NUMVAR,200
+NSOL,4,edge6,U,Y,Displacement
+RFORCE,5,edge6,F,Y,Force
+ABS,6,4,,,Displacement,,,1/a
+ABS,7,5,,,Stress,,,1/(b*t*vy)
+/AXLAB,X,Displacement
+/AXLAB,Y,Force
+XVAR,6
+PLVAR,7 
