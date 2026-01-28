@@ -1,0 +1,187 @@
+FINISH
+/CLEAR
+/FILNAME,XXX
+/PREP7
+/TITLE, Stiffened panel in compression
+/VIEW,1,1,1,1
+!All dimensions are in mm. Young's Modulus of Elasticity is in MPa.
+
+!White canvas for result presentation
+/RGB,INDEX,100,100,100,0
+/RGB,INDEX,0,0,0,15
+
+!Remove triad and min-max for result presentation
+/VIEW,1,1,1,1
+/TRIAD,OFF
+/PLOPTS,MINM,OFF
+
+!Remove date & time
+/PLOPTS,DATE,0
+/PLOPTS,LOGO,1
+
+!Section color view on elements
+/PNUM,SEC,1
+/NUMBER,1
+
+!#####################################################################################################################################
+!#####################################################################################################################################
+!## PANEL GEOMETRY PARAMETERS
+
+!SKIN PARAMETERS
+a = 440     !Plate length
+b = 590     !Plate width
+t = 2.2     !Plate thickness
+
+!STIFFENER PARAMETERS
+no_stringers = 3
+d_between_stiff = 167       !Distance between each stiffener
+d_edge_stiff = a/2-d_between_stiff
+h_stiff = 28                !Height of stiffener
+t_stiff = 2.8               !Thickness of stiffener
+
+!#####################################################################################################################################
+!#####################################################################################################################################
+!## 1. MATERIAL AND ELEMENT DEFINITION
+
+MP,EX,1,73.7E3                                  !Define material properties of aluminium, Young's Modulus and poisson ratio
+MP,NUXY,1,0.33
+TB,NLISO,1,,,POWER
+TBDATA,1,299,0.406
+
+ET,1,SHELL181						            !Define element type and section of skin
+SECTYPE,1,SHELL
+SECDATA,t
+
+ET,2,SHELL181                                   !Define element type and section of stiffeners
+SECTYPE,2,SHELL
+SECDATA,t_stiff
+
+!#####################################################################################################################################
+!#####################################################################################################################################
+!## 2. GEOMETRY CREATION
+
+!## 2.1 SKIN CREATION
+
+CSYS,0                                          !Cartesian coordinate system
+
+K,1,0,0,,                                       !Create keypoints at edge of skin panel
+K,2,a,0,,
+K,3,a,b,,
+K,4,0,b,,
+A,1,2,3,4                                       !Create rectangular area from keypoints created
+
+ASEL,S,AREA,,ALL
+AATT,1,,1,,1
+ALLSEL
+
+!## 2.2 STIFFENER CREATION
+
+K,5,d_edge_stiff,0,,
+K,6,d_edge_stiff,b,,                            !Create vertical lines for creation of keypoints for stiffeners
+L,5,6                                           !Create first stiffener line from left edge
+
+LSEL,S,LOC,X,d_edge_stiff
+LGEN,3,ALL,,,d_between_stiff,,,,,,              !Generate 2 more stiffener lines
+ALLSEL
+
+ASBL,ALL,ALL                                    !Subtract lines from areas
+
+*GET,kpmax,KP,0,NUM,MAX 
+K,kpmax+1,d_edge_stiff,,h_stiff
+K,kpmax+2,d_edge_stiff,b,h_stiff
+
+KSEL,S,LOC,X,d_edge_stiff
+KSEL,R,LOC,Y,0
+KSEL,R,LOC,Z,0
+*GET,K1,KP,0,NUM,MAX  
+ALLSEL 
+
+KSEL,S,LOC,X,d_edge_stiff
+KSEL,R,LOC,Y,b 
+KSEL,R,LOC,Z,0
+*GET,K2,KP,0,NUM,MAX  
+ALLSEL
+
+A,kpmax+1,kpmax+2,K2,K1
+KSEL,S,LOC,Z,h_stiff
+LSLK,S,1
+ASLL,S,0
+AATT,1,,2,,2
+AGEN,no_stringers,ALL,,,d_between_stiff,,,,,,   
+ALLSEL
+
+NUMMRG,KP
+
+!#####################################################################################################################################
+!#####################################################################################################################################
+!## 3. MESHING
+
+elemsize = 10
+ESIZE,elemsize
+AMESH,ALL
+NUMMRG,NODE
+
+!#####################################################################################################################################
+!#####################################################################################################################################
+!## 4. BOUNDARY CONDITIONS
+
+NSEL,S,LOC,Y,0,elemsize
+D,ALL,UX
+D,ALL,UY 
+D,ALL,UZ
+ALLSEL
+
+NSEL,S,LOC,Y,b,b-elemsize
+D,ALL,UX 
+D,ALL,UZ
+CP,NEXT,UY,ALL
+*GET,minnode,NODE,0,NUM,MIN 
+ALLSEL 
+
+D,minnode,UY,-2.5
+
+!#####################################################################################################################################
+!#####################################################################################################################################
+!## 5. EIGENVALUE SOLUTION
+
+/SOLU
+ANTYPE,STATIC             !Static analysis
+PSTRES,ON                 !Calculate prestress effects
+SOLVE
+FINISH
+
+/SOLU
+ANTYPE,BUCKLE             !Buckling analysis
+BUCOPT,LANB,10            !Use Block Lanczos method, 1 mode
+MXPAND,10                 !Expand 1 mode shape
+OUTPR,NSOL,ALL
+SOLVE
+FINISH
+
+/PREP7 
+d = 0.05*t
+UPGEOM,d,1,1,XXX,rst
+FINISH
+
+/SOLU
+NCNV,0
+ANTYPE,STATIC
+NLGEOM,ON
+TIME,2.5
+AUTOTS,OFF
+NSUBST,1000
+NEQIT,200
+ARCLEN,ON,10,0.1
+RESCONTROL,DEFINE,ALL,1
+OUTRES,ALL,ALL,,,,
+SOLVE
+
+/POST26
+NSOL,4,minnode,U,Y,Displacement
+RFORCE,5,minnode,F,Y,Force
+ABS,6,5,,,Load,,,1/1000
+ABS,7,4,,,Displacement,,,1
+/AXLAB,X,End Shortening (mm)
+/AXLAB,Y,Force (kN)
+XVAR,7
+PLVAR,6
