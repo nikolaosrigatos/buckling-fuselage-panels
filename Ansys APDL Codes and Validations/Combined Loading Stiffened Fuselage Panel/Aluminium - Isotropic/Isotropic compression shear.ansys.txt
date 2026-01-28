@@ -1,0 +1,266 @@
+!Units: [N], [Nmm], [N/mm^2 = MPa], [N/mm]
+FINISH
+/CLEAR
+/FILENAME,XXX
+/PREP7
+/TITLE,Isotropic Stiffened Panel
+/VIEW,1,1,1,1
+
+!Section color view on elements
+!/PNUM,SEC,1
+!/NUMBER,1
+
+!White canvas for result presentation
+/RGB,INDEX,100,100,100,0
+/RGB,INDEX,0,0,0,15
+!#################################################################################
+!#################################################################################
+!## PANEL PARAMETERS
+
+!SKIN PARAMETERS
+b = 750						        !Panel circumferential width
+a = 800						            !Panel length
+t = 1.6
+apanel = 600                                !Panel buckling length
+R = 2000						        	!Panel curvature 						        
+pi = 4*ATAN(1)						    	!Define pi
+*AFUN,DEG
+theta = (b/R)*(180/pi)				    	!Calculates the angle of the panel
+!theta = 2*ASIN((b/2)/R)                    !Theta if panel width is given
+
+!STRINGER PARAMETERS
+no_stringers = 5					       	!Total number of stringers
+t_stringers = 1.2
+h_stringers = 25    					    !Height of stringers
+angle_stringers = 60 
+b_upperweb = 25 
+b_foot = 25
+d_between_stringers = 150
+
+!POTTING AREA
+potting_dist = (a-apanel)/2
+!#################################################################################
+!#################################################################################
+!## MATERIAL DEFINITION AND ELEMENT TYPE
+
+!ORTHOTROPIC MATERIAL DEFINITION
+MP,EX,1,70E3 
+MP,PRXY,1,0.33
+
+ET,1,SHELL181
+SECTYPE,1,SHELL 
+SECDATA,t 
+SECTYPE,2,SHELL 
+SECDATA,t_stringers
+SECTYPE,3,SHELL 
+SECOFFSET,USER,t_stringers/2 
+SECDATA,t_stringers+t
+
+!#################################################################################
+!#################################################################################
+!## SKIN GEOMETRY CREATION
+
+LOCAL,11,1,0,0,a,180,180,
+
+CSYS,11									            !Cylindrical coordinate system
+
+K,1
+K,2,0,0,a								            !Define two KP's for rotating the base of the panel 
+
+K,3,R,-theta/2
+K,4,R,-theta/2,a					                !Define two KP's of the panel for creating the cylindrical geometry of the skin
+
+L,3,4	
+AROTAT,1,,,,,,1,2,theta,1		
+
+!#################################################################################
+!#################################################################################
+!## STRINGER GEOMETRY CREATION
+
+CSYS,0 
+*GET,kpmax,KP,0,NUM,MAX
+k,kpmax+1,h_stringers,b_upperweb/2,0 
+k,KPMAX+2,h_stringers,-b_upperweb/2,0 
+K,KPMAX+3,h_stringers,b_upperweb/2,a 
+K,kpmax+4,h_stringers,-b_upperweb/2,a 
+A,kpmax+1,kpmax+2,kpmax+4,kpmax+3
+
+x_stringer = b_upperweb/2 + h_stringers/tan(angle_stringers)
+K,kpmax+5,0,x_stringer,0
+k,kpmax+6,0,x_stringer,a
+A,kpmax+5,kpmax+6,kpmax+3,kpmax+1
+
+K,kpmax+7,0,-x_stringer,0
+k,kpmax+8,0,-x_stringer,a
+A,kpmax+7,kpmax+8,kpmax+4,kpmax+2
+
+CSYS,11
+*AFUN,DEG
+theta1 = ASIN(x_stringer/R)
+K,kpmax+9,R,theta1,0
+CSYS,0 
+xmove = KX(kpmax+9)
+
+ASEL,S,LOC,X,-h_stringers-1,h_stringers+1
+AGEN,1,ALL,,,xmove,0,0,,,1
+ALLSEL
+ASBL,ALL,ALL
+
+CSYS,11
+theta2 = ASIN((x_stringer+b_foot)/R)
+K,kpmax+10,R,theta2,0 
+K,kpmax+11,R,theta2,a 
+L,kpmax+10,kpmax+11
+
+K,kpmax+12,R,-theta2,0 
+K,kpmax+13,R,-theta2,a 
+L,kpmax+12,kpmax+13
+ASBL,ALL,ALL
+
+ASEL,S,LOC,Y,theta2,-theta2
+CM,STRINGER,AREA
+ALLSEL
+theta3 = (d_between_stringers/R)*(180/pi)
+theta4 = (2*d_between_stringers/R)*(180/pi)
+
+AGEN,(no_stringers-1)/2,STRINGER,,,0,theta3,0,,,
+AGEN,(no_stringers-1)/2,STRINGER,,,0,theta4,0,,,
+
+AGEN,(no_stringers-1)/2,STRINGER,,,0,-theta3,0,,,
+AGEN,(no_stringers-1)/2,STRINGER,,,0,-theta4,0,,,
+ALLSEL
+
+ASBL,ALL,ALL
+NUMMRG,KP 
+AGLUE,ALL
+
+!#################################################################################
+!#################################################################################
+!## COMPONENT SELECTION 
+
+ASEL,S,LOC,X,R-1,0 
+CM,STIFFENERS,AREA 
+ALLSEL 
+
+ASEL,S,AREA,,19,20 
+ASEL,A,AREA,,13,14
+ASEL,A,AREA,,9,10 
+ASEL,A,AREA,,25,26 
+ASEL,A,AREA,,31,32
+CM,FLANGE,AREA 
+ALLSEL 
+
+ASEL,S,LOC,X,R 
+CMSEL,U,FLANGE 
+CM,SKIN,AREA 
+ALLSEL
+
+!#################################################################################
+!#################################################################################
+!## MESHING
+
+elemsize = 10
+SECNUM,1 
+CMSEL,S,SKIN 
+ESIZE,elemsize
+AMESH,ALL 
+ALLSEL
+
+SECNUM,2
+CMSEL,S,STIFFENERS
+ESIZE,elemsize
+AMESH,ALL 
+ALLSEL
+
+SECNUM,3
+CMSEL,S,FLANGE
+ESIZE,elemsize
+AMESH,ALL 
+ALLSEL
+
+CSYS,11
+NROTAT,ALL
+
+!#################################################################################
+!#################################################################################
+!## BOUNDARY CONDITIONS 
+
+NSEL,S,LOC,Z,0,potting_dist+elemsize
+D,ALL,ALL
+ALLSEL 
+
+NSEL,S,LOC,Z,a,a-potting_dist-elemsize
+D,ALL,UX
+!D,ALL,UY
+!D,ALL,UZ 
+D,ALL,ROTX 
+D,ALL,ROTY 
+D,ALL,ROTZ
+*GET,minleftnode,NODE,0,num,min
+CP,NEXT,UY,ALL
+CP,NEXT,UZ,ALL
+ALLSEL
+
+NSEL,S,LOC,Y,theta/2 
+NSEL,A,LOC,Y,-theta/2 
+D,ALL,UX
+ALLSEL
+
+!F,minleftnode,FY,1
+!F,minleftnode,FZ
+
+D,minleftnode,UY,4.08*2*1
+!D,minleftnode,UZ,-0.75*1.737*2
+!#################################################################################
+!#################################################################################
+
+!/SOLU
+!ANTYPE,STATIC            
+!PSTRES,ON                 
+!SOLVE
+!FINISH
+
+!/SOLU
+!ANTYPE,BUCKLE             
+!BUCOPT,LANB,5          
+!MXPAND,5                
+!OUTPR,ALL,ALL
+!SOLVE
+!FINISH
+
+!/POST1
+!RSYS,1
+!SET,1,1
+!PLNSOL,U,SUM
+
+!#################################################################################
+!#################################################################################
+
+/SOLU
+ANTYPE,STATIC 
+NLGEOM,ON      
+NROPT,FULL,,ON
+TIME,1 
+AUTOTS,ON
+NSUBST,50,100,50
+NEQIT,200       
+NCNV,0 
+RESCONTROL,DEFINE,ALL,LAST,1
+OUTRES,ALL,ALL 
+SOLVE
+FINISH 
+
+/POST26
+NUMVAR,300
+NSOL,4,minleftnode,U,Y,Displacement  
+NSOL,8,minleftnode,U,Z,Displacement 
+RFORCE,5,minleftnode,F,Y,Force       
+RFORCE,9,minleftnode,F,Z,Force
+ABS,6,8,,,Displacement,,,1
+ABS,11,4,,,Displacement,,,1
+ABS,7,5,,,Stress,,,1/1000           
+ABS,10,9,,,Stress,,,1/1000   
+/AXLAB,X,Force
+/AXLAB,Y,Displacement
+XVAR,6
+PLVAR,7

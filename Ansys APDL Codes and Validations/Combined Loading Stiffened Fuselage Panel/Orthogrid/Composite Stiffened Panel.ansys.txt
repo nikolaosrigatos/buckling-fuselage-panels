@@ -1,0 +1,328 @@
+!Units: [N], [Nmm], [N/mm^2 = MPa], [N/mm]
+FINISH
+/CLEAR
+/FILENAME,XXX
+/PREP7
+/TITLE,Orthotropic Panel
+/VIEW,1,1,1,1
+
+!Section color view on elements
+!/PNUM,SEC,1
+!/NUMBER,1
+/PLOPTS,DATE,0
+
+!White canvas for result presentation
+/RGB,INDEX,100,100,100,0
+/RGB,INDEX,0,0,0,15
+!#################################################################################
+!#################################################################################
+!## PANEL PARAMETERS
+
+!SKIN PARAMETERS
+b = 800							        !Panel circumferential width
+a = 800						        	!Panel length`
+t = 1.6
+R = 2000						        	!Panel curvature 						        
+pi = 4*ATAN(1)						    	!Define pi
+*AFUN,DEG
+!theta = (b/R)*(180/pi)				    	!Calculates the angle of the panel
+theta = 2*ASIN((b/2)/R)                    !Theta if panel width is given
+
+!GRID PARAMETERS
+h_stiff = 10
+n_hor = 8
+n_ver = 8
+d_ver = a/(n_hor-1)
+d_hor = b/(n_ver-1)
+b_stiff = 10
+
+!POTTING AREA
+apanel = a - 2*d_ver                              !Panel buckling length
+potting_dist = (a-apanel)/2
+!#################################################################################
+!#################################################################################
+!## MATERIAL DEFINITION AND ELEMENT TYPE
+
+!ORTHOTROPIC MATERIAL DEFINITION
+UIMP,1,EX,EY,EZ,139.31E3,13.103E3,13.103E3
+UIMP,1,PRXY,PRYZ,PRXZ,0.3,0.3,0.3
+UIMP,1,GXY,GYZ,GXZ,5.0345E3,5.0345E3,5.0345E3
+
+!PLY THICKNESS 
+ply_thick_skin = 0.1524
+
+ET,1,SHELL181
+
+!SKIN 					             
+SECTYPE,1,SHELL
+SECDATA,ply_thick_skin,1,45,3
+SECDATA,ply_thick_skin,1,-45,3
+SECDATA,ply_thick_skin,1,90,3
+SECDATA,ply_thick_skin,1,0,3
+SECDATA,ply_thick_skin,1,0,3
+SECDATA,ply_thick_skin,1,90,3
+SECDATA,ply_thick_skin,1,-45,3
+SECDATA,ply_thick_skin,1,45,3
+
+!VERTICAL			             
+SECTYPE,2,SHELL
+SECDATA,ply_thick_skin,1,0,3
+*REPEAT,b_stiff/ply_thick_skin
+
+!HORIZONTAL		             
+SECTYPE,3,SHELL
+SECDATA,ply_thick_skin,1,0,3
+*REPEAT,b_stiff/ply_thick_skin
+
+KEYOPT,1,3,2
+
+!#################################################################################
+!#################################################################################
+!## SKIN GEOMETRY CREATION
+
+LOCAL,11,1,0,0,a,180,180,
+
+CSYS,11									            !Cylindrical coordinate system
+
+K,1
+K,2,0,0,a								            !Define two KP's for rotating the base of the panel 
+
+K,3,R,0
+K,4,R,0,a					                !Define two KP's of the panel for creating the cylindrical geometry of the skin
+
+L,3,4	
+AROTAT,1,,,,,,1,2,theta/2,1	
+
+!#################################################################################
+!#################################################################################
+
+*GET,kpmax,KP,0,NUM,MAX 
+K,kpmax+1,R-h_stiff,0,0
+K,kpmax+2,R-h_stiff,theta/2,0
+K,kpmax+3,0,theta/4,0
+LARC,kpmax+1,kpmax+2,kpmax+3,R
+
+LSEL,S,LOC,Z,0 
+*GET,line1,LINE,0,NUM,MAX 
+*GET,line2,LINE,0,NUM,MIN 
+ASKIN,line1,line2
+ALLSEL 
+
+ASEL,S,LOC,Z,0
+AGEN,n_ver,ALL,,,0,0,d_ver
+ALLSEL
+ASBL,ALL,ALL
+ASEL,S,LOC,X,R-1,0
+CM,VER,AREA 
+ALLSEL
+
+!#################################################################################
+!#################################################################################
+
+*GET,kpmax,KP,0,NUM,MAX 
+K,kpmax+1,R-h_stiff,0,0
+K,kpmax+2,R-h_stiff,0,a
+
+KSEL,S,LOC,Z,0 
+KSEL,R,LOC,Y,0 
+KSEL,R,LOC,X,R
+*GET,kp1,KP,0,NUM,MAX 
+ALLSEL 
+
+KSEL,S,LOC,Z,a 
+KSEL,R,LOC,Y,0 
+KSEL,R,LOC,X,R
+*GET,kp2,KP,0,NUM,MAX 
+ALLSEL 
+
+A,kp1,kp2,kpmax+2,kpmax+1
+ASBL,ALL,ALL
+
+theta_stiff = theta/(n_hor) !-1)
+ASEL,S,LOC,Y,0
+AGEN,(n_hor-1)/2+1,ALL,,,0,theta_stiff,0
+ALLSEL
+BTOL,1.0 
+ASBL,ALL,ALL
+BTOL,DEFA
+
+!#################################################################################
+!#################################################################################
+
+CSYS,0 
+ASEL,U,LOC,Y,0
+ARSYM,Y,ALL
+ALLSEL
+NUMMRG,KP 
+CSYS,11
+*DO,i,0,n_ver-1
+ 
+ *IF,i,EQ,0,THEN 
+    ASEL,S,LOC,Z,0 
+ *ELSEIF,i,NE,0 
+    ASEL,A,LOC,Z,i*d_ver
+ *ENDIF 
+
+*ENDDO
+
+CM,VER,AREA 
+
+SELTOL,1.0E-3
+ASEL,S,LOC,X,R
+CM,SKIN,AREA 
+ALLSEL
+
+CMSEL,U,SKIN 
+CMSEL,U,VER
+CM,HOR,AREA 
+ALLSEL
+
+!#################################################################################
+!#################################################################################
+MSHAPE,0
+MSHKEY,1
+
+SECNUM,1
+CMSEL,S,SKIN 
+ESIZE,20
+AMESH,ALL 
+ALLSEL
+
+SECNUM,2
+CMSEL,S,VER 
+ESIZE,3
+AMESH,ALL 
+ALLSEL
+
+SECNUM,3
+CMSEL,S,HOR 
+ESIZE,3
+AMESH,ALL 
+ALLSEL
+
+CSYS,11 
+NROTAT,ALL
+
+LOCAL,12,0,0,0,0,0,0,90
+ESEL,S,SEC,,1
+EMODIF,ALL,ESYS,12							
+ALLSEL
+
+ESEL,S,SEC,,3
+EMODIF,ALL,ESYS,12							
+ALLSEL
+
+CSYS,11 
+CLOCAL,13,1,0,0,0,0,0,0
+ESEL,S,SEC,,2
+EMODIF,ALL,ESYS,13			
+
+ESEL,S,SEC,,2
+*GET,minelem,ELEM,0,NUM,MIN
+*GET,elemcount,ELEM,0,COUNT
+k_elem = minelem 
+
+*DO,i,0,elemcount-1
+    CSYS,11
+    *GET,x1,ELEM,k_elem,CENT,X
+    *GET,y1,ELEM,k_elem,CENT,Y
+    *GET,z1,ELEM,k_elem,CENT,Z
+    ESEL,S,ELEM,,k_elem
+    CLOCAL,13+i,0,x1,y1,z1,90,0,0
+    EMODIF,ALL,ESYS,13+i 
+    ESEL,S,SEC,,2
+    k_elem = ELNEXT(k_elem)
+*ENDDO
+
+/PSYMB,CS,0
+ALLSEL
+NUMMRG,KP 
+NUMMRG,NODE
+CSYS,11
+!#################################################################################
+!#################################################################################
+
+CSYS,11 
+
+rs = 0
+rc = 1
+uc = 2
+us = 1
+NSEL,S,LOC,Z,0,1*d_ver
+D,ALL,ALL
+ALLSEL
+
+NSEL,S,LOC,Z,a,a-1*d_ver
+D,ALL,UX 
+D,ALL,ROTX 
+D,ALL,ROTY 
+D,ALL,ROTZ 
+CP,NEXT,UY,ALL 
+CP,NEXT,UZ,ALL
+*GET,minleftnode,NODE,0,NUM,MIN
+ALLSEL
+
+NSEL,S,LOC,Y,theta/2 
+NSEL,A,LOC,Y,-theta/2 
+D,ALL,UX 
+ALLSEL 
+
+D,minleftnode,UZ,-uc*rc
+D,minleftnode,UY,us*rs
+!#################################################################################
+!#################################################################################
+
+!/SOLU
+!ANTYPE,STATIC            
+!PSTRES,ON                 
+!SOLVE
+!FINISH
+
+!/SOLU
+!ANTYPE,BUCKLE             
+!BUCOPT,LANB,5,0,,RANGE      
+!MXPAND,5                
+!O!UTPR,ALL,ALL
+!SOLVE
+!FINISH
+
+!/POST1
+!RSYS,11
+!ET,1,1
+!PLNSOL,U,SUM
+
+!#################################################################################
+!#################################################################################
+
+!/PREP7
+!d = 0.05*t
+!UPGEOM,d,1,1,'XXX',rst
+
+/SOLU
+ANTYPE,STATIC 
+NLGEOM,ON      
+NROPT,FULL,,ON
+TIME,1    
+AUTOTS,ON
+NSUBST,30,40,30
+NEQIT,200       
+NCNV,0 
+RESCONTROL,DEFINE,ALL,LAST,1
+OUTRES,ALL,ALL 
+SOLVE
+FINISH 
+
+/POST26
+NUMVAR,300
+NSOL,4,minleftnode,U,Y,Displacement  
+RFORCE,5,minleftnode,F,Y,Force       
+NSOL,10,minleftnode,U,Z,Displacement  
+RFORCE,11,minleftnode,F,Z,Force       
+ABS,12,10,,,Displacement,,,1
+ABS,13,11,,,Stress,,,1/1000   
+ABS,6,4,,,Displacement,,,1
+ABS,7,5,,,Stress,,,1/1000           
+/AXLAB,X,Force
+/AXLAB,Y,Displacement
+XVAR,12
+PLVAR,13 
